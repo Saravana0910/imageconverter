@@ -18,12 +18,14 @@ const statusEl = document.getElementById("status");
 const downloadBtn = document.getElementById("download");
 const clearBtn = document.getElementById("clear");
 const stripExif = document.getElementById("stripExif");
+const progressBar = document.getElementById("progressBar");
 
 let currentFile;
 let outputBlob;
 
-dropZone.onclick = () => fileInput.click();
+/* ---------- Drag & drop ---------- */
 
+dropZone.onclick = () => fileInput.click();
 fileInput.onchange = () => loadFile(fileInput.files[0]);
 
 dropZone.ondragover = e => {
@@ -39,6 +41,8 @@ dropZone.ondrop = e => {
   loadFile(e.dataTransfer.files[0]);
 };
 
+/* ---------- Load file ---------- */
+
 function loadFile(file) {
   if (!file) return;
   currentFile = file;
@@ -48,32 +52,55 @@ function loadFile(file) {
   statusEl.textContent = "Image loaded";
 }
 
+/* ---------- Convert ---------- */
+
 convertBtn.onclick = async () => {
   if (!currentFile) return;
 
-  statusEl.textContent = "Processing locally…";
+  statusEl.textContent = "Preparing…";
   convertBtn.disabled = true;
+  progressBar.style.width = "12%";
 
-  const buffer = new Uint8Array(await currentFile.arrayBuffer());
-  const input = [{ name: currentFile.name, content: buffer }];
-  const outName = "output." + formatSel.value;
+  try {
+    const buffer = new Uint8Array(await currentFile.arrayBuffer());
+    const input = [{ name: currentFile.name, content: buffer }];
+    const outName = "output." + formatSel.value;
 
-  const command = [
-    "convert",
-    currentFile.name,
-    ...(stripExif.checked ? ["-strip"] : []),
-    outName
-  ];
+    const command = [
+      "convert",
+      currentFile.name,
+      ...(stripExif.checked ? ["-strip"] : []),
+      outName
+    ];
 
-  const result = await Magick.call(input, command);
+    statusEl.textContent = "Processing locally…";
+    progressBar.style.width = "55%";
 
-  outputBlob = new Blob([result.outputFiles[0].buffer]);
-  afterImg.src = URL.createObjectURL(outputBlob);
+    const result = await Magick.call(input, command);
 
-  downloadBtn.style.display = "inline-flex";
-  statusEl.textContent = "Done ✔";
+    if (!result.outputFiles || !result.outputFiles.length) {
+      throw new Error("No output generated");
+    }
+
+    progressBar.style.width = "85%";
+
+    outputBlob = new Blob([result.outputFiles[0].buffer]);
+    afterImg.src = URL.createObjectURL(outputBlob);
+
+    downloadBtn.style.display = "inline-flex";
+    progressBar.style.width = "100%";
+    statusEl.textContent = "Done ✔";
+
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = "Error: " + e.message;
+    progressBar.style.width = "0%";
+  }
+
   convertBtn.disabled = false;
 };
+
+/* ---------- Actions ---------- */
 
 downloadBtn.onclick = () => {
   const a = document.createElement("a");
@@ -85,15 +112,13 @@ downloadBtn.onclick = () => {
 clearBtn.onclick = () => {
   currentFile = null;
   outputBlob = null;
-
   beforeImg.src = "";
   afterImg.src = "";
-
   document.getElementById("workspace").style.display = "none";
   document.getElementById("controls").style.display = "none";
-
   fileInput.value = "";
   statusEl.textContent = "Cleared. Ready.";
+  progressBar.style.width = "0%";
 };
 </script>
 
@@ -216,6 +241,23 @@ button {
 #download { background: #16a34a; color: white; display: none; }
 #clear { background: #334155; color: white; }
 
+.progress-wrap {
+  width: 100%;
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 999px;
+  overflow: hidden;
+  height: 10px;
+  margin-top: 6px;
+}
+
+.progress {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #38bdf8, #2563eb);
+  transition: width 0.35s ease;
+}
+
 #status {
   width: 100%;
   text-align: center;
@@ -272,7 +314,12 @@ button {
       <button id="download">Download</button>
       <button id="clear">Clear</button>
 
+      <div class="progress-wrap">
+        <div id="progressBar" class="progress"></div>
+      </div>
+
       <div id="status"></div>
+
     </div>
   </div>
 
