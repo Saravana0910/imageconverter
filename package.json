@@ -1,0 +1,17 @@
+{
+  "name": "image-magic-web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "angel calderaro",
+  "license": "ISC",
+  "dependencies": {
+    "global": "^4.4.0",
+    "serve": "^11.3.2",
+    "wasm-imagemagick": "^1.2.7"
+  }
+}
